@@ -38,6 +38,16 @@ public class GameFile
 
   public native int getRevision();
 
+  public native String getBlobTypeString();
+
+  public native long getBlockSize();
+
+  public native String getCompressionMethod();
+
+  public native boolean shouldShowFileFormatDetails();
+
+  public native long getFileSize();
+
   public native int[] getBanner();
 
   public native int getBannerWidth();
@@ -53,12 +63,5 @@ public class GameFile
   public String getCustomCoverPath()
   {
     return getPath().substring(0, getPath().lastIndexOf(".")) + ".cover.png";
-  }
-
-  public String getScreenshotPath()
-  {
-    String gameId = getGameId();
-    return "file://" + Environment.getExternalStorageDirectory().getPath() +
-            "/dolphin-emu/ScreenShots/" + gameId + "/" + gameId + "-1.png";
   }
 }

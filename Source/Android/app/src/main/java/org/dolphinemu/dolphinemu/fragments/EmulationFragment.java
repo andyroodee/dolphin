@@ -5,8 +5,10 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v4.app.Fragment;
-import android.support.v4.content.LocalBroadcastManager;
+
+import androidx.fragment.app.Fragment;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -24,7 +26,6 @@ import org.dolphinemu.dolphinemu.utils.DirectoryInitialization;
 import org.dolphinemu.dolphinemu.utils.DirectoryInitialization.DirectoryInitializationState;
 import org.dolphinemu.dolphinemu.utils.DirectoryStateReceiver;
 import org.dolphinemu.dolphinemu.utils.Log;
-import org.dolphinemu.dolphinemu.utils.StartupHandler;
 
 import java.io.File;
 
@@ -261,7 +262,6 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
     }
 
     private final String[] mGamePaths;
-    private Thread mEmulationThread;
     private State state;
     private Surface mSurface;
     private boolean mRunWhenSurfaceIsValid;
@@ -398,7 +398,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
       mRunWhenSurfaceIsValid = false;
       if (state == State.STOPPED)
       {
-        mEmulationThread = new Thread(() ->
+        Thread emulationThread = new Thread(() ->
         {
           NativeLibrary.SurfaceChanged(mSurface);
           if (loadPreviousTemporaryState)
@@ -411,9 +411,9 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
             Log.debug("[EmulationFragment] Starting emulation thread.");
             NativeLibrary.Run(mGamePaths);
           }
+          EmulationActivity.stopIgnoringLaunchRequests();
         }, "NativeEmulation");
-        mEmulationThread.start();
-
+        emulationThread.start();
       }
       else if (state == State.PAUSED)
       {

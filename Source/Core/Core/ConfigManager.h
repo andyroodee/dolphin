@@ -72,6 +72,7 @@ struct SConfig
   bool m_WiiKeyboard;
   bool m_WiimoteContinuousScanning;
   bool m_WiimoteEnableSpeaker;
+  bool connect_wiimotes_for_ciface;
 
   // ISO folder
   std::vector<std::string> m_ISOFolder;
@@ -105,6 +106,7 @@ struct SConfig
   bool bJITPairedOff = false;
   bool bJITSystemRegistersOff = false;
   bool bJITBranchOff = false;
+  bool bJITRegisterCacheOff = false;
 
   bool bFastmem;
   bool bFPRF = false;
@@ -173,9 +175,11 @@ struct SConfig
   bool bEnableCustomRTC;
   u32 m_customRTCValue;
 
+  // DPL2
+  bool ShouldUseDPL2Decoder() const;
+
   DiscIO::Region m_region;
 
-  std::string m_strVideoBackend;
   std::string m_strGPUDeterminismMode;
 
   // set based on the string version
@@ -222,7 +226,10 @@ struct SConfig
   std::string m_strGbaCartB;
   ExpansionInterface::TEXIDevices m_EXIDevice[3];
   SerialInterface::SIDevices m_SIDevice[4];
+
   std::string m_bba_mac;
+  std::string m_bba_xlink_ip;
+  bool m_bba_xlink_chat_osd = true;
 
   // interface language
   std::string m_InterfaceLanguage;
@@ -263,9 +270,13 @@ struct SConfig
   bool m_showTitleColumn;
   bool m_showMakerColumn;
   bool m_showFileNameColumn;
+  bool m_showFilePathColumn;
   bool m_showIDColumn;
   bool m_showRegionColumn;
   bool m_showSizeColumn;
+  bool m_showFileFormatColumn;
+  bool m_showBlockSizeColumn;
+  bool m_showCompressionColumn;
   bool m_showTagsColumn;
 
   std::string m_WirelessMac;
@@ -300,13 +311,6 @@ struct SConfig
   bool m_AdapterRumble[4];
   bool m_AdapterKonga[4];
 
-  // Network settings
-  bool m_SSLDumpRead;
-  bool m_SSLDumpWrite;
-  bool m_SSLVerifyCert;
-  bool m_SSLDumpRootCA;
-  bool m_SSLDumpPeerCert;
-
   // Auto-update settings
   std::string m_auto_update_track;
   std::string m_auto_update_hash_override;
@@ -339,7 +343,6 @@ private:
   void SaveInputSettings(IniFile& ini);
   void SaveMovieSettings(IniFile& ini);
   void SaveFifoPlayerSettings(IniFile& ini);
-  void SaveNetworkSettings(IniFile& ini);
   void SaveAnalyticsSettings(IniFile& ini);
   void SaveBluetoothPassthroughSettings(IniFile& ini);
   void SaveUSBPassthroughSettings(IniFile& ini);
@@ -354,7 +357,6 @@ private:
   void LoadInputSettings(IniFile& ini);
   void LoadMovieSettings(IniFile& ini);
   void LoadFifoPlayerSettings(IniFile& ini);
-  void LoadNetworkSettings(IniFile& ini);
   void LoadAnalyticsSettings(IniFile& ini);
   void LoadBluetoothPassthroughSettings(IniFile& ini);
   void LoadUSBPassthroughSettings(IniFile& ini);

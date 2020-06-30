@@ -20,8 +20,10 @@
 
 namespace DiscIO
 {
+class BlobReader;
 enum class BlobType;
 class FileSystem;
+class VolumeDisc;
 class VolumeWAD;
 
 struct Partition final
@@ -50,7 +52,7 @@ public:
   {
     T temp;
     if (!Read(offset, sizeof(T), reinterpret_cast<u8*>(&temp), partition))
-      return {};
+      return std::nullopt;
     return Common::FromBigEndian(temp);
   }
   std::optional<u64> ReadSwappedAndShifted(u64 offset, const Partition& partition) const
@@ -132,6 +134,7 @@ public:
   virtual bool IsSizeAccurate() const = 0;
   // Size on disc (compressed size)
   virtual u64 GetRawSize() const = 0;
+  virtual const BlobReader& GetBlobReader() const = 0;
 
 protected:
   template <u32 N>
@@ -158,10 +161,6 @@ protected:
   static const IOS::ES::TicketReader INVALID_TICKET;
   static const IOS::ES::TMDReader INVALID_TMD;
   static const std::vector<u8> INVALID_CERT_CHAIN;
-};
-
-class VolumeDisc : public Volume
-{
 };
 
 std::unique_ptr<VolumeDisc> CreateDisc(const std::string& path);

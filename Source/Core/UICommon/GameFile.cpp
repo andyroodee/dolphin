@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include <fmt/format.h>
 #include <pugixml.hpp>
 
 #include "Common/ChunkFile.h"
@@ -37,6 +38,7 @@
 #include "Core/TitleDatabase.h"
 
 #include "DiscIO/Blob.h"
+#include "DiscIO/DiscExtractor.h"
 #include "DiscIO/Enums.h"
 #include "DiscIO/Volume.h"
 #include "DiscIO/WiiSaveBanner.h"
@@ -45,8 +47,6 @@ namespace UICommon
 {
 namespace
 {
-constexpr char COVER_URL[] = "https://art.gametdb.com/wii/cover/%s/%s.png";
-
 const std::string EMPTY_STRING;
 }  // Anonymous namespace
 
@@ -98,11 +98,9 @@ GameFile::GameFile() = default;
 
 GameFile::GameFile(std::string path) : m_file_path(std::move(path))
 {
-  {
-    std::string name, extension;
-    SplitPath(m_file_path, nullptr, &name, &extension);
-    m_file_name = name + extension;
+  m_file_name = PathToFileName(m_file_path);
 
+  {
     std::unique_ptr<DiscIO::Volume> volume(DiscIO::CreateVolume(m_file_path));
     if (volume != nullptr)
     {
@@ -117,8 +115,13 @@ GameFile::GameFile(std::string path) : m_file_path(std::move(path))
       m_region = volume->GetRegion();
       m_country = volume->GetCountry();
       m_blob_type = volume->GetBlobType();
+      m_block_size = volume->GetBlobReader().GetBlockSize();
+      m_compression_method = volume->GetBlobReader().GetCompressionMethod();
       m_file_size = volume->GetRawSize();
       m_volume_size = volume->GetSize();
+      m_volume_size_is_accurate = volume->IsSizeAccurate();
+      m_is_datel_disc = DiscIO::IsDisc(m_platform) &&
+                        !DiscIO::GetBootDOLOffset(*volume, volume->GetGamePartition());
 
       m_internal_name = volume->GetInternalName();
       m_game_id = volume->GetGameID();
@@ -139,6 +142,8 @@ GameFile::GameFile(std::string path) : m_file_path(std::move(path))
   {
     m_valid = true;
     m_file_size = m_volume_size = File::GetSize(m_file_path);
+    m_volume_size_is_accurate = true;
+    m_is_datel_disc = false;
     m_platform = DiscIO::Platform::ELFOrDOL;
     m_blob_type = DiscIO::BlobType::DIRECTORY;
   }
@@ -241,8 +246,8 @@ void GameFile::DownloadDefaultCover()
   }
 
   Common::HttpRequest request;
-  const auto response =
-      request.Get(StringFromFormat(COVER_URL, region_code.c_str(), m_gametdb_id.c_str()));
+  constexpr char cover_url[] = "https://art.gametdb.com/wii/cover/{}/{}.png";
+  const auto response = request.Get(fmt::format(cover_url, region_code, m_gametdb_id));
 
   if (!response)
     return;
@@ -299,6 +304,8 @@ void GameFile::DoState(PointerWrap& p)
 
   p.Do(m_file_size);
   p.Do(m_volume_size);
+  p.Do(m_volume_size_is_accurate);
+  p.Do(m_is_datel_disc);
 
   p.Do(m_short_names);
   p.Do(m_long_names);
@@ -315,6 +322,8 @@ void GameFile::DoState(PointerWrap& p)
   p.Do(m_country);
   p.Do(m_platform);
   p.Do(m_blob_type);
+  p.Do(m_block_size);
+  p.Do(m_compression_method);
   p.Do(m_revision);
   p.Do(m_disc_number);
   p.Do(m_apploader_date);
@@ -541,8 +550,8 @@ std::string GameFile::GetUniqueIdentifier() const
   std::string lower_name = name;
   std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(), ::tolower);
   if (disc_number > 1 &&
-      lower_name.find(StringFromFormat("disc %i", disc_number)) == std::string::npos &&
-      lower_name.find(StringFromFormat("disc%i", disc_number)) == std::string::npos)
+      lower_name.find(fmt::format("disc {}", disc_number)) == std::string::npos &&
+      lower_name.find(fmt::format("disc{}", disc_number)) == std::string::npos)
   {
     std::string disc_text = "Disc ";
     info.push_back(disc_text + std::to_string(disc_number));
@@ -559,6 +568,29 @@ std::string GameFile::GetWiiFSPath() const
 {
   ASSERT(DiscIO::IsWii(m_platform));
   return Common::GetTitleDataPath(m_title_id, Common::FROM_CONFIGURED_ROOT);
+}
+
+bool GameFile::ShouldShowFileFormatDetails() const
+{
+  switch (m_blob_type)
+  {
+  case DiscIO::BlobType::PLAIN:
+    break;
+  case DiscIO::BlobType::DRIVE:
+    return false;
+  default:
+    return true;
+  }
+
+  switch (m_platform)
+  {
+  case DiscIO::Platform::WiiWAD:
+    return false;
+  case DiscIO::Platform::ELFOrDOL:
+    return false;
+  default:
+    return true;
+  }
 }
 
 const GameBanner& GameFile::GetBannerImage() const

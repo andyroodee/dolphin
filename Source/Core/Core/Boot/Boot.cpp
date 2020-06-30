@@ -58,7 +58,7 @@ namespace fs = std::filesystem;
 #include "Core/PowerPC/PowerPC.h"
 
 #include "DiscIO/Enums.h"
-#include "DiscIO/Volume.h"
+#include "DiscIO/VolumeDisc.h"
 #include "DiscIO/VolumeWad.h"
 
 static std::vector<std::string> ReadM3UFile(const std::string& m3u_path,
@@ -159,7 +159,7 @@ BootParameters::GenerateFromFile(std::vector<std::string> paths,
     paths.clear();
 
   static const std::unordered_set<std::string> disc_image_extensions = {
-      {".gcm", ".iso", ".tgc", ".wbfs", ".ciso", ".gcz", ".dol", ".elf"}};
+      {".gcm", ".iso", ".tgc", ".wbfs", ".ciso", ".gcz", ".wia", ".rvz", ".dol", ".elf"}};
   if (disc_image_extensions.find(extension) != disc_image_extensions.end() || is_drive)
   {
     std::unique_ptr<DiscIO::VolumeDisc> disc = DiscIO::CreateDisc(path);
@@ -241,6 +241,17 @@ bool CBoot::DVDRead(const DiscIO::VolumeDisc& disc, u64 dvd_offset, u32 output_a
   if (!disc.Read(dvd_offset, length, buffer.data(), partition))
     return false;
   Memory::CopyToEmu(output_address, buffer.data(), length);
+  return true;
+}
+
+bool CBoot::DVDReadDiscID(const DiscIO::VolumeDisc& disc, u32 output_address)
+{
+  std::array<u8, 0x20> buffer;
+  if (!disc.Read(0, buffer.size(), buffer.data(), DiscIO::PARTITION_NONE))
+    return false;
+  Memory::CopyToEmu(output_address, buffer.data(), buffer.size());
+  // Clear ERROR_NO_DISKID_L, probably should check if that's currently set
+  DVDInterface::SetLowError(DVDInterface::ERROR_READY);
   return true;
 }
 
